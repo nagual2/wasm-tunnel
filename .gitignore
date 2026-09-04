@@ -40,3 +40,9 @@ app.wasm
 
 err.log
 
+
+# Node / pnpm workspace
+node_modules/
+packages/*/dist/
+*.tsbuildinfo
+_tmp_*

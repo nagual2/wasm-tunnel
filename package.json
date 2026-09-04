@@ -1,0 +1,13 @@
+{
+  "name": "wasm-tunnel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser-first TypeScript library for encrypted application transport to self-hosted nodes (VLESS over WebSocket).",
+  "packageManager": "pnpm@10.12.1",
+  "scripts": {
+    "build": "pnpm --filter @wasm-tunnel/client build",
+    "test": "pnpm --filter @wasm-tunnel/client test",
+    "typecheck": "pnpm --filter @wasm-tunnel/client typecheck"
+  },
+  "devDependencies": {}
+}

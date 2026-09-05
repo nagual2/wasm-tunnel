@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   encodeVlessRequestHeader,
-  parseIPv4,
-  parseIPv6,
   VlessResponseDecoder,
   VLESS_COMMAND,
-} from "../src/protocol";
+} from "../src/protocols/vless";
+import { parseIPv4, parseIPv6 } from "../src/address";
 import { parseUUID } from "../src/uuid";
 
 const UUID = parseUUID("00010203-0405-0607-0809-0a0b0c0d0e0f");

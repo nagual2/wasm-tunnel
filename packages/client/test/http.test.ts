@@ -20,7 +20,6 @@ describe("normalizeNodeHost", () => {
     expect(() => normalizeNodeHost("[2001:db8::1")).toThrow(/invalid IPv6 host/);
   });
 });
-
 describe("encodeHttpRequest", () => {
   it("builds a minimal GET with derived Host and forced close/identity", () => {
     const out = new TextDecoder().decode(

@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       XRAY_UUID: 4c1d7a9e-2b3f-4e58-9d60-1a2b3c4d5e6f
+      SS_PASSWORD: ci-test-password-aes-ss
+      SS_METHOD: aes-256-gcm
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -10,6 +10,7 @@
 
 import { readFileSync } from "node:fs";
 import { createVlessWsTunnel } from "../packages/client/src/index";
+import { createSsWsTunnel } from "../packages/client/src/protocols/shadowsocks";
 
 function loadDotEnv(path = ".env"): void {
   let text: string;
@@ -35,6 +36,10 @@ interface E2eConfig {
   tls: boolean;
   target: string;
   targetV6: string;
+  ssPassword: string | undefined;
+  ssMethod: string;
+  ssPort: number;
+  ssPath: string;
 }
 
 function readConfig(): E2eConfig {
@@ -52,6 +57,10 @@ function readConfig(): E2eConfig {
     tls: (process.env.TUNNEL_TLS ?? "false") === "true",
     target: process.env.TUNNEL_TARGET_URL ?? "http://echo:8081/e2e",
     targetV6: process.env.TUNNEL_TARGET_URL_V6 ?? "http://[fd2c:4a98:9a2b::10]:8081/e2e",
+    ssPassword: process.env.SS_PASSWORD,
+    ssMethod: process.env.SS_METHOD ?? "aes-256-gcm",
+    ssPort: Number(process.env.SS_PORT ?? 8082),
+    ssPath: process.env.SS_PATH ?? "/ss",
   };
 }
 
@@ -162,6 +171,42 @@ async function main(): Promise<void> {
         console.log("WS6  SKIP host cannot reach the node over IPv6 (environment limitation)");
       } else {
         throw error;
+      }
+    }
+
+    // 4. Shadowsocks (AEAD) over its own WS inbound, same echo target
+    if (!config.ssPassword) {
+      console.log("SS   SKIP no SS_PASSWORD in environment");
+    } else {
+      const ssTunnel = createSsWsTunnel({
+        host: config.wsHost,
+        port: config.ssPort,
+        path: config.ssPath,
+        password: config.ssPassword,
+        method: config.ssMethod as "aes-128-gcm" | "aes-256-gcm",
+        timeoutMs: 15_000,
+      });
+      try {
+        const ssTarget = new URL(config.target);
+        ssTarget.searchParams.set("probe", String(Date.now()));
+        const ssStarted = Date.now();
+        await fetchWithRetry(ssTunnel, async () => {
+          const r = await ssTunnel.fetch(ssTarget);
+          const b = (await r.json()) as Record<string, unknown>;
+          assert(r.status === 200, `SS GET expected 200, got ${r.status}`);
+          assert(b["method"] === "GET", `SS echo method mismatch: ${JSON.stringify(b)}`);
+        });
+        const ssPost = await ssTunnel.fetch(ssTarget, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: payload,
+        });
+        const ssPostBody = (await ssPost.json()) as Record<string, unknown>;
+        assert(ssPost.status === 200, `SS POST expected 200, got ${ssPost.status}`);
+        assert(ssPostBody["body"] === payload, `SS POST body mismatch: ${JSON.stringify(ssPostBody)}`);
+        console.log(`SS   ok  GET+POST via aes AEAD in ${Date.now() - ssStarted} ms`);
+      } finally {
+        ssTunnel.close();
       }
     }
 

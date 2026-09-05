@@ -1,0 +1,29 @@
+{
+  "name": "wasm-tunnel",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-first VLESS-over-WebSocket tunnel client for application HTTP traffic",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "npm run dev -w apps/demo",
+    "build": "npm run build -w apps/demo",
+    "typecheck": "tsc -p packages/client && tsc -p apps/demo && tsc -p .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "tsx scripts/e2e.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.0"
+  }
+}

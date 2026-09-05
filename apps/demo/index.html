@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>wasm-tunnel demo — HTTP via VLESS over WebSocket</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main class="wrap">
+      <header>
+        <h1>wasm-tunnel</h1>
+        <p class="sub">
+          Browser demo: HTTP request sent through a VLESS-over-WebSocket tunnel to a
+          self-hosted node. The node connects to the target — the browser never talks to
+          it directly.
+        </p>
+      </header>
+
+      <section class="grid">
+        <fieldset>
+          <legend>Tunnel node (WebSocket)</legend>
+          <label>Host <input id="node-host" value="127.0.0.1" /></label>
+          <label>Port <input id="node-port" type="number" value="8080" /></label>
+          <label>Path <input id="node-path" value="/tunnel" /></label>
+          <label>UUID <input id="node-uuid" placeholder="VLESS user UUID" /></label>
+          <label class="check">
+            <input id="node-tls" type="checkbox" />
+            TLS (wss://)
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Target request (resolved by the node)</legend>
+          <label>URL <input id="target-url" value="http://echo:8081/via-tunnel" /></label>
+          <label>Method
+            <select id="req-method">
+              <option>GET</option>
+              <option>POST</option>
+              <option>PUT</option>
+              <option>DELETE</option>
+            </select>
+          </label>
+          <label>Body (non-GET) <textarea id="req-body" rows="3" placeholder='{"hello":"tunnel"}'></textarea></label>
+          <button id="btn-go">Request via tunnel</button>
+        </fieldset>
+      </section>
+
+      <section id="result" class="result" hidden>
+        <h2 id="out-status"></h2>
+        <pre id="out-headers"></pre>
+        <pre id="out-body"></pre>
+      </section>
+
+      <section>
+        <h2>Log</h2>
+        <pre id="log" class="log"></pre>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

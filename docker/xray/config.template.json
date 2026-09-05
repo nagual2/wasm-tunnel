@@ -14,6 +14,21 @@
         "security": "none",
         "wsSettings": { "path": "__WS_PATH__" }
       }
+    },
+    {
+      "listen": "::",
+      "port": 8082,
+      "protocol": "shadowsocks",
+      "settings": {
+        "method": "__SS_METHOD__",
+        "password": "__SS_PASSWORD__",
+        "network": "tcp"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": { "path": "__SS_PATH__" }
+      }
     }
   ],
   "outbounds": [

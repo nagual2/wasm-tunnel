@@ -1,24 +1,27 @@
 /**
- * wasm-tunnel client: a thin browser-first VLESS-over-WebSocket tunnel
- * client for application HTTP traffic (not a system VPN).
+ * wasm-tunnel client default entry: core + VLESS. Kept deliberately thin —
+ * other protocols live behind subpath exports ("./shadowsocks") and the lazy
+ * factory ("./create-tunnel") so unused protocols never reach the bundle.
  */
 
 export { concatBytes } from "./bytes";
 export { parseUUID, stringifyUUID } from "./uuid";
-export {
-  encodeVlessRequestHeader,
-  parseIPv4,
-  parseIPv6,
-  VlessResponseDecoder,
-  VLESS_ADDRESS_TYPE,
-  VLESS_COMMAND,
-  VLESS_VERSION,
-} from "./protocol";
+export { ADDRESS_TYPE, parseIPv4, parseIPv6 } from "./address";
 export { encodeHttpRequest, HttpResponseParser } from "./http";
 export {
-  createVlessWsTunnel,
   normalizeNodeHost,
+  type TargetAddress,
   type Tunnel,
   type TunnelRequestInit,
-  type VlessWsTunnelOptions,
+  type WsTunnelOptions,
 } from "./tunnel";
+export {
+  createVlessWsTunnel,
+  encodeVlessRequestHeader,
+  VlessResponseDecoder,
+  VLESS_COMMAND,
+  VLESS_VERSION,
+  type VlessResponseHeader,
+  type VlessWsTunnelOptions,
+} from "./protocols/vless";
+export { createTunnel, type CreateTunnelOptions } from "./create-tunnel";

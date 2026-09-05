@@ -1,13 +1,16 @@
 {
   "name": "wasm-tunnel-client",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Thin browser-first VLESS over WebSocket tunnel client (TypeScript)",
+  "description": "Browser-first tunnel client (VLESS, Shadowsocks AEAD) over WebSocket transport (TypeScript)",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./create-tunnel": "./src/create-tunnel.ts",
+    "./shadowsocks": "./src/protocols/shadowsocks.ts",
+    "./package.json": "./package.json"
   },
   "engines": {
     "node": ">=22"

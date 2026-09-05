@@ -20,10 +20,23 @@
       <section class="grid">
         <fieldset>
           <legend>Tunnel node (WebSocket)</legend>
+          <label>Protocol
+            <select id="protocol">
+              <option value="vless">VLESS</option>
+              <option value="shadowsocks">Shadowsocks (AEAD)</option>
+            </select>
+          </label>
+          <label id="uuid-label">UUID <input id="node-uuid" placeholder="VLESS user UUID" /></label>
+          <label id="ss-password-label" hidden>Password <input id="ss-password" placeholder="SS password" /></label>
+          <label id="ss-method-label" hidden>Method
+            <select id="ss-method">
+              <option value="aes-256-gcm">aes-256-gcm</option>
+              <option value="aes-128-gcm">aes-128-gcm</option>
+            </select>
+          </label>
           <label>Host <input id="node-host" value="127.0.0.1" /></label>
           <label>Port <input id="node-port" type="number" value="8080" /></label>
           <label>Path <input id="node-path" value="/tunnel" /></label>
-          <label>UUID <input id="node-uuid" placeholder="VLESS user UUID" /></label>
           <label class="check">
             <input id="node-tls" type="checkbox" />
             TLS (wss://)

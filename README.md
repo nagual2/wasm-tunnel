@@ -69,6 +69,28 @@ friends work as usual. Limitations (MVP1): `http://` targets only (in-tunnel
 TLS for `https://` targets is future work), one request per WebSocket
 connection.
 
+### Protocols
+
+The default entry contains the core + VLESS only. Shadowsocks lives behind a
+subpath export and is loaded lazily — consumers never ship a protocol they
+did not import:
+
+```ts
+// direct (tree-shakable):
+import { createSsWsTunnel } from "wasm-tunnel-client/shadowsocks";
+const ss = createSsWsTunnel({ host: "127.0.0.1", port: 8082, path: "/ss",
+                              password: "…", method: "aes-256-gcm" });
+
+// or the generic lazy factory:
+import { createTunnel } from "wasm-tunnel-client/create-tunnel";
+const tunnel = await createTunnel({ protocol: "shadowsocks", /* … */ });
+```
+
+Shadowsocks notes: `aes-128-gcm` / `aes-256-gcm` via native SubtleCrypto
+(ChaCha20 variants would need a JS cipher — not planned); the node must
+expose SS over a WebSocket transport (the bundled Xray does), since raw-TCP
+sockets are unreachable from a browser page.
+
 ## IPv6
 
 IPv6 работает наравне с IPv4 в обеих плоскостях:
@@ -109,7 +131,7 @@ every push.
 
 - [x] MVP1: VLESS + WebSocket client, demo, Docker node, tests
 - [x] Dual-stack IPv6 (node and targets), verified by e2e
-- [ ] Transport seam refactor: transport-as-stream + `createTunnel({protocol})`
+- [x] Transport seam refactor: transport-as-stream + `createTunnel({protocol})`
       factory with per-protocol subpath exports (anti-bloat module split)
 - [ ] npm packaging of the client package
 - [ ] Service Worker helper for same-origin `fetch` interception
@@ -129,7 +151,7 @@ unfrozen here.
 
 | № | Protocol | Status | Notes |
 |---|----------|--------|-------|
-| 1 | Shadowsocks (AEAD) | **unfrozen — next up** | HKDF + AES-GCM via SubtleCrypto, +2–3 kB gzip; largest alive pool (72 nodes) |
+| 1 | Shadowsocks (AEAD) | **unfrozen — implemented** | aes-128/256-gcm via SubtleCrypto; verified against Xray ss+ws e2e |
 | 2 | Trojan | 🧊 frozen | Feasible (sha224 password, same stream contract), but 0 alive in DB |
 | 3 | VMess | 🧊 frozen | Feasible (JS AES-CFB ~1–2 kB), only 2 configs in DB |
 | 4 | WireGuard / AmneziaWG | 🧊 frozen (permanent) | No UDP sockets in browsers; the Wasm stack path was rejected by the brief |

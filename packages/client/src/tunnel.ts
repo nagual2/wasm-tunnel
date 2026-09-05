@@ -8,6 +8,7 @@
 import { parseUUID } from "./uuid";
 import {
   encodeVlessRequestHeader,
+  parseIPv6,
   VLESS_COMMAND,
   VlessResponseDecoder,
 } from "./protocol";
@@ -46,6 +47,21 @@ export interface Tunnel {
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
+/**
+ * Normalize the node host for the WebSocket URL: bare IPv6 literals get
+ * wrapped in brackets ("::1" → "[::1]"), everything else passes through.
+ */
+export function normalizeNodeHost(raw: string): string {
+  const host = raw.trim();
+  if (!host) throw new Error("tunnel host is required");
+  if (host.startsWith("[")) {
+    if (!host.endsWith("]")) throw new Error(`invalid IPv6 host: ${JSON.stringify(raw)}`);
+    return host;
+  }
+  if (parseIPv6(host)) return `[${host}]`;
+  return host;
+}
+
 function normalizePath(path: string): string {
   const trimmed = path.trim();
   if (!trimmed) return "/";
@@ -57,8 +73,7 @@ function normalizePath(path: string): string {
 }
 
 export function createVlessWsTunnel(options: VlessWsTunnelOptions): Tunnel {
-  const host = options.host.trim();
-  if (!host) throw new Error("tunnel host is required");
+  const host = normalizeNodeHost(options.host);
   const tls = options.tls ?? false;
   const port = options.port ?? (tls ? 443 : 80);
   const path = normalizePath(options.path ?? "/");

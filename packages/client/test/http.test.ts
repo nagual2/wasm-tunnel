@@ -1,6 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { encodeHttpRequest, HttpResponseParser } from "../src/http";
 import { concatBytes } from "../src/bytes";
+import { normalizeNodeHost } from "../src/tunnel";
+
+describe("normalizeNodeHost", () => {
+  it("wraps bare IPv6 literals in brackets", () => {
+    expect(normalizeNodeHost("::1")).toBe("[::1]");
+    expect(normalizeNodeHost("2001:db8::1")).toBe("[2001:db8::1]");
+  });
+
+  it("keeps bracketed hosts, IPv4 and domain names untouched", () => {
+    expect(normalizeNodeHost("[2001:db8::1]")).toBe("[2001:db8::1]");
+    expect(normalizeNodeHost("127.0.0.1")).toBe("127.0.0.1");
+    expect(normalizeNodeHost("example.com")).toBe("example.com");
+  });
+
+  it("rejects empty and malformed bracketed hosts", () => {
+    expect(() => normalizeNodeHost("   ")).toThrow(/host is required/);
+    expect(() => normalizeNodeHost("[2001:db8::1")).toThrow(/invalid IPv6 host/);
+  });
+});
 
 describe("encodeHttpRequest", () => {
   it("builds a minimal GET with derived Host and forced close/identity", () => {

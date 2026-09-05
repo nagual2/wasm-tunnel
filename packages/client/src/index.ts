@@ -17,6 +17,7 @@ export {
 export { encodeHttpRequest, HttpResponseParser } from "./http";
 export {
   createVlessWsTunnel,
+  normalizeNodeHost,
   type Tunnel,
   type TunnelRequestInit,
   type VlessWsTunnelOptions,

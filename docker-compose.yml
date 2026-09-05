@@ -19,3 +19,17 @@ services:
     restart: unless-stopped
     ports:
       - "${ECHO_PORT:-8081}:8081"
+    networks:
+      default:
+        # Static ULA so e2e can target IPv6 deterministically.
+        ipv6_address: fd2c:4a98:9a2b::10
+
+networks:
+  default:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1
+        - subnet: fd2c:4a98:9a2b::/64
+          gateway: fd2c:4a98:9a2b::1

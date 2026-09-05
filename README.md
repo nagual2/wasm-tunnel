@@ -106,8 +106,14 @@ every push.
 ## Roadmap
 
 - [x] MVP1: VLESS + WebSocket client, demo, Docker node, tests
+- [x] Dual-stack IPv6 (node and targets), verified by e2e
+- [ ] Transport seam refactor: transport-as-stream + `createTunnel({protocol})`
+      factory with per-protocol subpath exports (anti-bloat module split)
 - [ ] MVP2: Shadowsocks (AEAD) and VMess behind the same API, Service Worker
       helper, npm packaging
+- [ ] QUIC transport: WebTransport module (Chromium/Firefox, ws fallback for
+      Safari) + sing-box `webtransport` node profile; hand-rolled QUIC in
+      Wasm is explicitly out of scope
 - [ ] MVP3: MV3 browser extension skeleton (`wasm-unsafe-eval` CSP), optional
       `chrome.proxy` bridge
 - [ ] Wasm crypto hot paths (measured; JS SubtleCrypto/none is fine for now)

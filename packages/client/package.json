@@ -1,18 +1,49 @@
 {
-  "name": "wasm-tunnel-client",
-  "version": "0.2.0",
-  "private": true,
+  "name": "@nagual2/wasm-tunnel-client",
+  "version": "0.1.0",
+  "description": "Browser-first tunnel client: VLESS / Shadowsocks (AEAD) over WebSocket, for application HTTP traffic to your self-hosted node (TypeScript)",
   "type": "module",
-  "description": "Browser-first tunnel client (VLESS, Shadowsocks AEAD) over WebSocket transport (TypeScript)",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "sideEffects": false,
+  "files": [
+    "src"
+  ],
   "exports": {
-    ".": "./src/index.ts",
-    "./create-tunnel": "./src/create-tunnel.ts",
-    "./shadowsocks": "./src/protocols/shadowsocks.ts",
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./create-tunnel": {
+      "types": "./src/create-tunnel.ts",
+      "import": "./src/create-tunnel.ts",
+      "default": "./src/create-tunnel.ts"
+    },
+    "./shadowsocks": {
+      "types": "./src/protocols/shadowsocks.ts",
+      "import": "./src/protocols/shadowsocks.ts",
+      "default": "./src/protocols/shadowsocks.ts"
+    },
     "./package.json": "./package.json"
   },
   "engines": {
     "node": ">=22"
+  },
+  "keywords": [
+    "vless",
+    "shadowsocks",
+    "websocket",
+    "tunnel",
+    "xray",
+    "browser",
+    "typescript"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nagual2/wasm-tunnel.git"
+  },
+  "homepage": "https://github.com/nagual2/wasm-tunnel",
+  "bugs": {
+    "url": "https://github.com/nagual2/wasm-tunnel/issues"
   }
 }

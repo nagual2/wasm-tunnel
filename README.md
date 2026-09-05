@@ -1,5 +1,10 @@
 # wasm-tunnel
 
+[![CI](https://github.com/nagual2/wasm-tunnel/actions/workflows/ci.yml/badge.svg)](https://github.com/nagual2/wasm-tunnel/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Demo](https://img.shields.io/badge/demo-GitHub%20Pages-2ea44f.svg)](https://nagual2.github.io/wasm-tunnel/)
+
 Browser-first **tunnel client** for application HTTP traffic: a web page (or
 extension) opens a WebSocket to **your own self-hosted node** and sends HTTP
 requests through it. No TUN/TAP, no OS routing, no system VPN — the tunnel
@@ -27,10 +32,10 @@ lives entirely inside the page.
 Prerequisites: Docker, Node.js ≥ 22.
 
 ```bash
-# 1. Configure the test node
-cp .env.example .env        # generate secrets:
-                            #   node -e "console.log(crypto.randomUUID())"
-                            #   node -e "console.log(crypto.randomBytes(16).toString('base64url'))"
+# 1. Configure the test node (secrets are generated locally; none are committed)
+cp .env.example .env
+node -e "console.log(crypto.randomUUID())"                                    # → set XRAY_UUID
+node -e "console.log(crypto.randomBytes(16).toString('base64url'))"            # → set SS_PASSWORD
 
 # 2. Start the node + echo server
 docker compose up -d
@@ -42,9 +47,15 @@ npm run dev                 # http://localhost:5173
 
 Open http://localhost:5173, pick a protocol, press **Request via tunnel**.
 Defaults point the demo at `ws://127.0.0.1:8080/tunnel` (VLESS) or
-`ws://127.0.0.1:8082/ss` (Shadowsocks) and the target `http://echo:8081/…` —
+`ws://127.0.0.1:8082/ss` (Shadowsocks) and the target `http://echo:8081/via-tunnel` —
 the `echo` name is resolved by the node inside the Docker network, so the
 browser cannot reach it directly: every byte really goes through the tunnel.
+
+Prefer the hosted page? The same demo runs on GitHub Pages at
+[https://nagual2.github.io/wasm-tunnel/](https://nagual2.github.io/wasm-tunnel/)
+via `npm run build && npm run preview` locally — a static client bundle, no
+server-side secrets, point it at your own node (it only works against a node
+your browser can reach).
 
 ## Library API
 
@@ -179,6 +190,19 @@ items stay documented and dependency-free — they enter only if unfrozen here.
 | 4 | VMess | 🧊 frozen | Feasible (JS AES-CFB ~1–2 kB) |
 | 5 | WireGuard / AmneziaWG | 🧊 frozen (permanent) | No UDP sockets in browsers; a Wasm VPN stack would repeat the megabytes-in-a-page problem |
 
+## Acknowledgements
+
+- **[asciimoth/wg-web-demo](https://github.com/asciimoth/wg-web-demo)** (CC0) —
+  the architecture seed this project was forked from: the browser-page + WS
+  + self-hosted-node pattern. Its WireGuard code was fully removed and none
+  of its code is retained; the fork history remains in this repo.
+- **[XTLS/Xray-core](https://github.com/XTLS/Xray-core)** — protocol reference
+  for the VLESS framing and the Shadowsocks AEAD transport, verified against
+  an official Xray-core node in CI and e2e.
+- **[SagerNet/sing-box](https://github.com/SagerNet/sing-box)** — reference for
+  node-side transport/protocol options on the roadmap.
+
 ## License
 
-[MIT](./LICENSE)
+[MIT](./LICENSE) — this project's own code is MIT-licensed; see the
+acknowledgements above for upstream attribution.

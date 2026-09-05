@@ -1,22 +1,26 @@
 # wasm-tunnel
 
-Browser-first **VLESS over WebSocket** tunnel client for application HTTP traffic.
-A web page (or extension) opens a WebSocket to **your own self-hosted node**
-(official Xray-core in Docker) and sends application HTTP requests through it —
-no TUN/TAP, no OS routing, no system VPN.
+Browser-first **tunnel client** for application HTTP traffic: a web page (or
+extension) opens a WebSocket to **your own self-hosted node** and sends HTTP
+requests through it. No TUN/TAP, no OS routing, no system VPN — the tunnel
+lives entirely inside the page.
 
 ```
 ┌─────────────┐  wss/ws   ┌────────────────────┐  plain TCP  ┌──────────────┐
-│ Browser     │──────────▶│ Xray node (Docker) │────────────▶│ Target (http)│
-│ TS client   │  VLESS    │ VLESS-WS inbound   │             │ e.g. echo    │
+│ Browser     │──────────▶│ Node (Docker)      │────────────▶│ Target (http)│
+│ TS client   │  VLESS /  │ Xray-core inbound  │             │ e.g. echo    │
+│             │  SS AEAD  │                    │             │              │
 └─────────────┘           └────────────────────┘             └──────────────┘
 ```
 
-This repository started as a fork of [asciimoth/wg-web-demo](https://github.com/asciimoth/wg-web-demo)
-and keeps its browser-tunnel architecture spirit (browser + WebSocket + optional
-Wasm), but the WireGuard transport is fully replaced by a thin TypeScript
-VLESS-over-WebSocket client. VLESS itself performs no encryption — transport
-security comes from `wss://` (TLS) or a trusted private network.
+- **Thin client**: protocol framing in pure TypeScript; crypto comes from the
+  platform (SubtleCrypto). The demo bundle is a few kB gzipped, protocols load
+  lazily and independently.
+- **Multi-protocol**: VLESS and Shadowsocks (AEAD) today, behind one API —
+  `createTunnel({ protocol })` — with per-protocol subpath exports so unused
+  protocols never reach your bundle.
+- **Dual-stack IPv6** for the node connection and for targets, verified by e2e.
+- **Self-hosted node for tests**: official Xray-core in Docker, one command up.
 
 ## Quickstart (5 minutes)
 
@@ -24,8 +28,9 @@ Prerequisites: Docker, Node.js ≥ 22.
 
 ```bash
 # 1. Configure the test node
-cp .env.example .env        # optionally generate a fresh UUID:
-                            # node -e "console.log(crypto.randomUUID())"
+cp .env.example .env        # generate secrets:
+                            #   node -e "console.log(crypto.randomUUID())"
+                            #   node -e "console.log(crypto.randomBytes(16).toString('base64url'))"
 
 # 2. Start the node + echo server
 docker compose up -d
@@ -35,11 +40,11 @@ npm ci
 npm run dev                 # http://localhost:5173
 ```
 
-Open http://localhost:5173 and press **Request via tunnel**. Defaults point the
-demo at `ws://127.0.0.1:8080/tunnel` with the UUID from `.env` and the target
-`http://echo:8081/…` (the `echo` name is resolved by the node inside the Docker
-network — the browser cannot reach it directly, proving the traffic really goes
-through the tunnel).
+Open http://localhost:5173, pick a protocol, press **Request via tunnel**.
+Defaults point the demo at `ws://127.0.0.1:8080/tunnel` (VLESS) or
+`ws://127.0.0.1:8082/ss` (Shadowsocks) and the target `http://echo:8081/…` —
+the `echo` name is resolved by the node inside the Docker network, so the
+browser cannot reach it directly: every byte really goes through the tunnel.
 
 ## Library API
 
@@ -65,15 +70,14 @@ tunnel.close();
 ```
 
 `tunnel.fetch()` returns a standard `Response`, so `.json()`, `.text()` and
-friends work as usual. Limitations (MVP1): `http://` targets only (in-tunnel
-TLS for `https://` targets is future work), one request per WebSocket
-connection.
+friends work as usual. Limitations: `http://` targets only (in-tunnel TLS for
+`https://` targets is on the roadmap), one request per WebSocket connection.
 
 ### Protocols
 
-The default entry contains the core + VLESS only. Shadowsocks lives behind a
-subpath export and is loaded lazily — consumers never ship a protocol they
-did not import:
+The default entry contains the core + VLESS only. Other protocols live behind
+subpath exports and load lazily — consumers never ship a protocol they did
+not import:
 
 ```ts
 // direct (tree-shakable):
@@ -86,31 +90,47 @@ import { createTunnel } from "wasm-tunnel-client/create-tunnel";
 const tunnel = await createTunnel({ protocol: "shadowsocks", /* … */ });
 ```
 
+Adding a protocol means implementing one seam — a `ProtocolSession` that
+encodes the handshake + initial payload and decodes the reply framing. The
+WebSocket transport and the HTTP-over-stream layer are protocol-agnostic and
+shared.
+
 Shadowsocks notes: `aes-128-gcm` / `aes-256-gcm` via native SubtleCrypto
 (ChaCha20 variants would need a JS cipher — not planned); the node must
 expose SS over a WebSocket transport (the bundled Xray does), since raw-TCP
 sockets are unreachable from a browser page.
 
+### Adding your own protocol
+
+1. Create `src/protocols/<name>.ts` exporting a `create<Name>Tunnel(options)`
+   factory built on `makeWsTunnel(options, openStream)`.
+2. `openStream(target)` returns a `ProtocolSession`: `firstMessage(initial)`
+   folds the handshake and the initial HTTP request bytes into the first
+   transport message; `inbound(chunk)` strips the reply framing.
+3. Register it in `src/create-tunnel.ts` and add a subpath export in the
+   package manifest if it should be lazy-loadable.
+
 ## IPv6
 
-IPv6 работает наравне с IPv4 в обеих плоскостях:
+IPv6 works on equal footing with IPv4 in both planes:
 
-- **Цели внутри туннеля** — IPv6-литералы (`http://[2001:db8::1]:8080/`) и домены
-  с AAAA-записями; нода резолвит и набирает адрес сама (VLESS `atype: IPv6`,
-  поддержка `::`-сжатия и v4-mapped форм).
-- **Хост ноды снаружи** — литерал можно давать как в скобках, так и без:
-  `"::1"` автоматически нормализуется в `"[::1]"` (`normalizeNodeHost`).
-- **Поставляемый docker-стек** dual-stack: inbound Xray слушает `::`, echo
-  биндится на `::` (принимает и v4-mapped), сеть compose включает IPv6 со
-  статическим ULA `fd2c:4a98:9a2b::10` для echo — по нему e2e проверяет v6-цель.
+- **Targets inside the tunnel** — IPv6 literals (`http://[2001:db8::1]:8080/`)
+  and domains with AAAA records; the node resolves and dials them itself.
+- **Node host outside** — IPv6 literals are accepted with or without brackets
+  (`"::1"` is normalized to `"[::1]"` by `normalizeNodeHost`).
+- **Bundled docker stack** is dual-stack: the node inbounds listen on `::`,
+  the echo server binds `::` (accepts v4-mapped too), and the compose network
+  has IPv6 enabled with a static ULA for the echo service, which the e2e
+  suite targets explicitly.
 
 ## Testing
 
 ```bash
-npm test                 # unit tests (framing, UUID, HTTP parser)
+npm test                 # unit tests (framing, crypto, HTTP parser)
 
 docker compose up -d
-npm run test:e2e         # integration test against the real Xray node
+npm run test:e2e         # integration tests against the real node:
+                         # VLESS GET/POST, IPv6 target, IPv6 node, Shadowsocks
 ```
 
 CI (`.github/workflows/ci.yml`) runs the unit suite and the Docker e2e job on
@@ -118,44 +138,47 @@ every push.
 
 ## Environment
 
-| № | Variable    | Default    | Meaning                        |
-|---|-------------|------------|--------------------------------|
-| 1 | `XRAY_UUID` | —          | VLESS user UUID (required)     |
-| 2 | `XRAY_PORT` | `8080`     | Host port for the VLESS-WS inbound |
-| 3 | `WS_PATH`   | `/tunnel`  | WebSocket path                 |
-| 4 | `ECHO_PORT` | `8081`     | Host port for the echo server  |
+| № | Variable     | Default    | Meaning                                |
+|---|--------------|------------|----------------------------------------|
+| 1 | `XRAY_UUID`  | —          | VLESS user UUID (required)             |
+| 2 | `XRAY_PORT`  | `8080`     | Host port for the VLESS-WS inbound     |
+| 3 | `WS_PATH`    | `/tunnel`  | VLESS WebSocket path                   |
+| 4 | `SS_PASSWORD`| —          | Shadowsocks password (required)        |
+| 5 | `SS_METHOD`  | `aes-256-gcm` | Shadowsocks AEAD method             |
+| 6 | `SS_PORT`    | `8082`     | Host port for the Shadowsocks-WS inbound |
+| 7 | `SS_PATH`    | `/ss`      | Shadowsocks WebSocket path             |
+| 8 | `ECHO_PORT`  | `8081`     | Host port for the echo server          |
 
 ## Roadmap
 
 ### Core & transports
 
-- [x] MVP1: VLESS + WebSocket client, demo, Docker node, tests
+- [x] VLESS + Shadowsocks client, demo, Docker node, unit + e2e tests
 - [x] Dual-stack IPv6 (node and targets), verified by e2e
-- [x] Transport seam refactor: transport-as-stream + `createTunnel({protocol})`
-      factory with per-protocol subpath exports (anti-bloat module split)
+- [x] Protocol module seam: transport-as-stream, `createTunnel({protocol})`,
+      per-protocol subpath exports (anti-bloat module split)
 - [ ] npm packaging of the client package
 - [ ] Service Worker helper for same-origin `fetch` interception
 - [ ] QUIC transport: WebTransport module (Chromium/Firefox, ws fallback for
       Safari) + sing-box `webtransport` node profile; hand-rolled QUIC in
       Wasm is explicitly out of scope
-- [ ] MVP3: MV3 browser extension skeleton (`wasm-unsafe-eval` CSP), optional
+- [ ] MV3 browser extension skeleton (`wasm-unsafe-eval` CSP), optional
       `chrome.proxy` bridge
-- [ ] Wasm crypto hot paths (measured; JS SubtleCrypto/none is fine for now)
-- [ ] In-tunnel TLS to `https://` targets, Reality (future work)
+- [ ] In-tunnel TLS to `https://` targets, Reality-style server hardening
 
 ### Protocols
 
-Protocol inventory source: tg-vpn-search checker DB (minisforum, 2026-07).
-Frozen items stay documented and dependency-free — they enter only if
-unfrozen here.
+Protocol inventory source: our tg-vpn-search checker DB (2026-07). Frozen
+items stay documented and dependency-free — they enter only if unfrozen here.
 
 | № | Protocol | Status | Notes |
 |---|----------|--------|-------|
-| 1 | Shadowsocks (AEAD) | **unfrozen — implemented** | aes-128/256-gcm via SubtleCrypto; verified against Xray ss+ws e2e |
-| 2 | Trojan | 🧊 frozen | Feasible (sha224 password, same stream contract), but 0 alive in DB |
-| 3 | VMess | 🧊 frozen | Feasible (JS AES-CFB ~1–2 kB), only 2 configs in DB |
-| 4 | WireGuard / AmneziaWG | 🧊 frozen (permanent) | No UDP sockets in browsers; the Wasm stack path was rejected by the brief |
+| 1 | VLESS (WS) | **implemented** | framing + UUID auth, e2e-verified |
+| 2 | Shadowsocks (AEAD) | **implemented** | aes-128/256-gcm via SubtleCrypto; ss+ws e2e-verified |
+| 3 | Trojan | 🧊 frozen | Feasible (sha224 password, same stream contract) |
+| 4 | VMess | 🧊 frozen | Feasible (JS AES-CFB ~1–2 kB) |
+| 5 | WireGuard / AmneziaWG | 🧊 frozen (permanent) | No UDP sockets in browsers; a Wasm VPN stack would repeat the megabytes-in-a-page problem |
 
 ## License
 
-CC0 1.0 (see [LICENSE](./LICENSE)) — inherited from the upstream project.
+[MIT](./LICENSE)

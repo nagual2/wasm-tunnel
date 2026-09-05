@@ -105,12 +105,14 @@ every push.
 
 ## Roadmap
 
+### Core & transports
+
 - [x] MVP1: VLESS + WebSocket client, demo, Docker node, tests
 - [x] Dual-stack IPv6 (node and targets), verified by e2e
 - [ ] Transport seam refactor: transport-as-stream + `createTunnel({protocol})`
       factory with per-protocol subpath exports (anti-bloat module split)
-- [ ] MVP2: Shadowsocks (AEAD) and VMess behind the same API, Service Worker
-      helper, npm packaging
+- [ ] npm packaging of the client package
+- [ ] Service Worker helper for same-origin `fetch` interception
 - [ ] QUIC transport: WebTransport module (Chromium/Firefox, ws fallback for
       Safari) + sing-box `webtransport` node profile; hand-rolled QUIC in
       Wasm is explicitly out of scope
@@ -118,6 +120,19 @@ every push.
       `chrome.proxy` bridge
 - [ ] Wasm crypto hot paths (measured; JS SubtleCrypto/none is fine for now)
 - [ ] In-tunnel TLS to `https://` targets, Reality (future work)
+
+### Protocols
+
+Protocol inventory source: tg-vpn-search checker DB (minisforum, 2026-07).
+Frozen items stay documented and dependency-free — they enter only if
+unfrozen here.
+
+| № | Protocol | Status | Notes |
+|---|----------|--------|-------|
+| 1 | Shadowsocks (AEAD) | **unfrozen — next up** | HKDF + AES-GCM via SubtleCrypto, +2–3 kB gzip; largest alive pool (72 nodes) |
+| 2 | Trojan | 🧊 frozen | Feasible (sha224 password, same stream contract), but 0 alive in DB |
+| 3 | VMess | 🧊 frozen | Feasible (JS AES-CFB ~1–2 kB), only 2 configs in DB |
+| 4 | WireGuard / AmneziaWG | 🧊 frozen (permanent) | No UDP sockets in browsers; the Wasm stack path was rejected by the brief |
 
 ## License
 

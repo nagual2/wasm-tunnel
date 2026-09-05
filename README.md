@@ -69,6 +69,19 @@ friends work as usual. Limitations (MVP1): `http://` targets only (in-tunnel
 TLS for `https://` targets is future work), one request per WebSocket
 connection.
 
+## IPv6
+
+IPv6 работает наравне с IPv4 в обеих плоскостях:
+
+- **Цели внутри туннеля** — IPv6-литералы (`http://[2001:db8::1]:8080/`) и домены
+  с AAAA-записями; нода резолвит и набирает адрес сама (VLESS `atype: IPv6`,
+  поддержка `::`-сжатия и v4-mapped форм).
+- **Хост ноды снаружи** — литерал можно давать как в скобках, так и без:
+  `"::1"` автоматически нормализуется в `"[::1]"` (`normalizeNodeHost`).
+- **Поставляемый docker-стек** dual-stack: inbound Xray слушает `::`, echo
+  биндится на `::` (принимает и v4-mapped), сеть compose включает IPv6 со
+  статическим ULA `fd2c:4a98:9a2b::10` для echo — по нему e2e проверяет v6-цель.
+
 ## Testing
 
 ```bash

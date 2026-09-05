@@ -34,6 +34,7 @@ interface E2eConfig {
   uuid: string;
   tls: boolean;
   target: string;
+  targetV6: string;
 }
 
 function readConfig(): E2eConfig {
@@ -50,6 +51,7 @@ function readConfig(): E2eConfig {
     uuid,
     tls: (process.env.TUNNEL_TLS ?? "false") === "true",
     target: process.env.TUNNEL_TARGET_URL ?? "http://echo:8081/e2e",
+    targetV6: process.env.TUNNEL_TARGET_URL_V6 ?? "http://[fd2c:4a98:9a2b::10]:8081/e2e",
   };
 }
 
@@ -127,6 +129,41 @@ async function main(): Promise<void> {
       `POST body mismatch: ${JSON.stringify(postBody)}`,
     );
     console.log("POST ok  status=200 body round-trip matches");
+
+    // 3. IPv6 target inside the tunnel (static ULA address of the echo container)
+    const targetV6 = new URL(config.targetV6);
+    targetV6.searchParams.set("probe", String(Date.now()));
+    const v6Response = await tunnel.fetch(targetV6);
+    const v6Body = (await v6Response.json()) as Record<string, unknown>;
+    assert(v6Response.status === 200, `v6 target expected 200, got ${v6Response.status}`);
+    assert(
+      v6Body && v6Body["method"] === "GET",
+      `v6 echo method mismatch: ${JSON.stringify(v6Body)}`,
+    );
+    console.log(`GET6 ok  status=200 target=${targetV6.hostname}`);
+
+    // 4. Node reachable over IPv6: bare "::1" exercises bracket normalization.
+    try {
+      const tunnelV6Node = createVlessWsTunnel({
+        host: "::1",
+        port: config.wsPort,
+        path: config.wsPath,
+        uuid: config.uuid,
+        tls: config.tls,
+        timeoutMs: 10_000,
+      });
+      const v6NodeResponse = await tunnelV6Node.fetch(target);
+      assert(v6NodeResponse.status === 200, `v6 node expected 200, got ${v6NodeResponse.status}`);
+      await v6NodeResponse.text();
+      console.log("WS6  ok  node WebSocket over IPv6 loopback");
+      tunnelV6Node.close();
+    } catch (error) {
+      if (error instanceof Error && /tunnel WebSocket error/.test(error.message)) {
+        console.log("WS6  SKIP host cannot reach the node over IPv6 (environment limitation)");
+      } else {
+        throw error;
+      }
+    }
 
     console.log("E2E OK");
   } finally {

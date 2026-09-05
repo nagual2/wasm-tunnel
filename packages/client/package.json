@@ -1,0 +1,15 @@
+{
+  "name": "wasm-tunnel-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Thin browser-first VLESS over WebSocket tunnel client (TypeScript)",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

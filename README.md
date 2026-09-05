@@ -1,52 +1,105 @@
-# wg-web-demo
+# wasm-tunnel
 
-[Browser WASM demonstration](https://asciimoth.github.io/wg-web-demo/) of HTTP over VTun over WireGuard over SOCKS-over-WebSocket.
+Browser-first **VLESS over WebSocket** tunnel client for application HTTP traffic.
+A web page (or extension) opens a WebSocket to **your own self-hosted node**
+(official Xray-core in Docker) and sends application HTTP requests through it —
+no TUN/TAP, no OS routing, no system VPN.
 
-It uses:
-- [socksgo](https://github.com/asciimoth/socksgo) for SOCKS-over-WebSocket transport
-- [wgo](https://github.com/asciimoth/wgo) + [batchudp](https://github.com/asciimoth/batchudp) for the WireGuard node
-- [vtun](https://github.com/asciimoth/gonnect-netstack/vtun) for the userspace TCP/IP stack
-
-The demo runs one WireGuard node per browser tab. You can:
-- connect the tab to an external WireGuard peer
-- open two tabs and pair them with each other by exchanging the displayed public key and advertised endpoint
-
-For both cases you need SOCKS-over-WebSocket relay like [gost](https://gost.run/en/tutorials/protocols/socks/).
-
-<p align="center">
-<img src="./screen.png" align="center">
-</p>
-
-## Build
-
-```bash
-just build
+```
+┌─────────────┐  wss/ws   ┌────────────────────┐  plain TCP  ┌──────────────┐
+│ Browser     │──────────▶│ Xray node (Docker) │────────────▶│ Target (http)│
+│ TS client   │  VLESS    │ VLESS-WS inbound   │             │ e.g. echo    │
+└─────────────┘           └────────────────────┘             └──────────────┘
 ```
 
-## Serve
+This repository started as a fork of [asciimoth/wg-web-demo](https://github.com/asciimoth/wg-web-demo)
+and keeps its browser-tunnel architecture spirit (browser + WebSocket + optional
+Wasm), but the WireGuard transport is fully replaced by a thin TypeScript
+VLESS-over-WebSocket client. VLESS itself performs no encryption — transport
+security comes from `wss://` (TLS) or a trusted private network.
+
+## Quickstart (5 minutes)
+
+Prerequisites: Docker, Node.js ≥ 22.
 
 ```bash
-just serve
+# 1. Configure the test node
+cp .env.example .env        # optionally generate a fresh UUID:
+                            # node -e "console.log(crypto.randomUUID())"
+
+# 2. Start the node + echo server
+docker compose up -d
+
+# 3. Install and run the demo
+npm ci
+npm run dev                 # http://localhost:5173
 ```
 
-Then open `http://127.0.0.1:8000/`.
+Open http://localhost:5173 and press **Request via tunnel**. Defaults point the
+demo at `ws://127.0.0.1:8080/tunnel` with the UUID from `.env` and the target
+`http://echo:8081/…` (the `echo` name is resolved by the node inside the Docker
+network — the browser cannot reach it directly, proving the traffic really goes
+through the tunnel).
 
-## Test Flow
+## Library API
 
-1. Start a SOCKS-over-WebSocket server with UDP enabled, for example:
+```ts
+import { createVlessWsTunnel } from "wasm-tunnel-client";
+
+const tunnel = createVlessWsTunnel({
+  host: "127.0.0.1",     // node WebSocket host
+  port: 8080,            // default: 443 with tls, 80 without
+  uuid: "<VLESS-UUID>",
+  path: "/tunnel",       // WebSocket path (may include ?ed=…)
+  tls: false,            // true → wss://
+  timeoutMs: 30_000,
+});
+
+const response = await tunnel.fetch("http://echo:8081/hello", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ hello: "tunnel" }),
+});
+console.log(response.status, await response.text());
+tunnel.close();
+```
+
+`tunnel.fetch()` returns a standard `Response`, so `.json()`, `.text()` and
+friends work as usual. Limitations (MVP1): `http://` targets only (in-tunnel
+TLS for `https://` targets is future work), one request per WebSocket
+connection.
+
+## Testing
 
 ```bash
-gost -L "socks5+ws://:1080?udp=true&udpBufferSize=4096&bind=true"
+npm test                 # unit tests (framing, UUID, HTTP parser)
+
+docker compose up -d
+npm run test:e2e         # integration test against the real Xray node
 ```
 
-2. Open one or two tabs with the demo.
-3. Use a proxy URL with the gost extension flag, for example `socks5+ws://127.0.0.1:1080?bind=true&gost=true`.
-4. Start each node with a distinct tunnel IP such as `10.44.0.1` and `10.44.0.2`.
-5. Copy each tab's public key and suggested endpoint into the other tab's peer settings.
-6. Set the remote tab's tunnel IP in `Peer allowed IPs`, for example `10.44.0.2/32`.
-7. Start the in-tunnel HTTP server on one side and request `http://<peer-tunnel-ip>:8000/` from the other side.
+CI (`.github/workflows/ci.yml`) runs the unit suite and the Docker e2e job on
+every push.
 
-## Notes
+## Environment
 
-The proxy may report a wildcard UDP bind address such as `0.0.0.0`. In that case the demo also shows a suggested endpoint derived from the SOCKS relay host, but you may still need to replace it with a routable host manually depending on your proxy topology.
+| № | Variable    | Default    | Meaning                        |
+|---|-------------|------------|--------------------------------|
+| 1 | `XRAY_UUID` | —          | VLESS user UUID (required)     |
+| 2 | `XRAY_PORT` | `8080`     | Host port for the VLESS-WS inbound |
+| 3 | `WS_PATH`   | `/tunnel`  | WebSocket path                 |
+| 4 | `ECHO_PORT` | `8081`     | Host port for the echo server  |
 
+## Roadmap
+
+- [x] MVP1: VLESS + WebSocket client, demo, Docker node, tests
+- [ ] MVP2: Shadowsocks (AEAD) and VMess behind the same API, Service Worker
+      helper, npm packaging
+- [ ] MVP3: MV3 browser extension skeleton (`wasm-unsafe-eval` CSP), optional
+      `chrome.proxy` bridge
+- [ ] Wasm crypto hot paths (measured; JS SubtleCrypto/none is fine for now)
+- [ ] In-tunnel TLS to `https://` targets, Reality (future work)
+
+## License
+
+CC0 1.0 (see [LICENSE](./LICENSE)) — inherited from the upstream project.

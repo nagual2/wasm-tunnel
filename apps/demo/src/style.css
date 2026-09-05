@@ -1,0 +1,113 @@
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #0f1420;
+  color: #d8e0ee;
+}
+
+.wrap {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+h1 {
+  margin: 0;
+  letter-spacing: 0.03em;
+}
+
+.sub {
+  color: #8fa0bd;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+fieldset {
+  border: 1px solid #2a3650;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+legend {
+  padding: 0 6px;
+  color: #9fb3d8;
+  font-weight: 600;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.85rem;
+  color: #8fa0bd;
+}
+
+label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+input,
+select,
+textarea {
+  background: #18203280;
+  border: 1px solid #2a3650;
+  border-radius: 6px;
+  color: #e7eefc;
+  padding: 6px 8px;
+  font: inherit;
+}
+
+button {
+  background: #2d5dd7;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: #3a6de8;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.result {
+  border: 1px solid #2a3650;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 16px;
+}
+
+pre {
+  background: #0b0f18;
+  border: 1px solid #1d2740;
+  border-radius: 6px;
+  padding: 10px 12px;
+  overflow: auto;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.log {
+  max-height: 220px;
+  white-space: pre-wrap;
+  color: #9fb3d8;
+}

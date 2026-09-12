@@ -25,3 +25,19 @@ export {
   type VlessWsTunnelOptions,
 } from "./protocols/vless";
 export { createTunnel, type CreateTunnelOptions } from "./create-tunnel";
+export {
+  DEFAULT_SW_ROUTES,
+  SwTunnelController,
+  installTunnelServiceWorker,
+  normalizeSwRoutes,
+  resolveTunnelTarget,
+  swErrorResponse,
+  swPartsToResponse,
+  tunnelFetch,
+  tunnelResponseToParts,
+  type InstallTunnelServiceWorkerOptions,
+  type SwFetchInput,
+  type SwFetchOutcome,
+  type SwTunnelConfig,
+  type TunnelFetchOptions,
+} from "./sw";

@@ -23,6 +23,11 @@
       "import": "./src/protocols/shadowsocks.ts",
       "default": "./src/protocols/shadowsocks.ts"
     },
+    "./sw": {
+      "types": "./src/sw.ts",
+      "import": "./src/sw.ts",
+      "default": "./src/sw.ts"
+    },
     "./package.json": "./package.json"
   },
   "engines": {

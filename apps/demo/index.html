@@ -55,6 +55,11 @@
             </select>
           </label>
           <label>Body (non-GET) <textarea id="req-body" rows="3" placeholder='{"hello":"tunnel"}'></textarea></label>
+          <label class="check">
+            <input id="sw-mode" type="checkbox" />
+            Route via Service Worker (registers <code>sw.js</code>, uses
+            <code>tunnelFetch</code> from the page)
+          </label>
           <button id="btn-go">Request via tunnel</button>
         </fieldset>
       </section>

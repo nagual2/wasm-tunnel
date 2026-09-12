@@ -1,4 +1,5 @@
 import type { Tunnel } from "wasm-tunnel-client";
+import type { SwTunnelConfig } from "wasm-tunnel-client/sw";
 
 interface DemoSettings {
   protocol: "vless" | "shadowsocks";
@@ -115,37 +116,64 @@ function showResult(response: Response, bodyText: string, elapsedMs: number): vo
 async function run(): Promise<void> {
   const button = $("btn-go") as HTMLButtonElement;
   const settings = collectSettings();
+  const viaSw = ($("sw-mode") as HTMLInputElement).checked;
   button.disabled = true;
   try {
     writeSettings(settings);
-    // Lazy load: the protocol module is fetched on first use, keeping the
-    // demo bundle at core+VLESS until Shadowsocks is actually selected.
-    const { createTunnel } = await import("wasm-tunnel-client/create-tunnel");
-    const tunnel: Tunnel = await createTunnel({
-      protocol: settings.protocol,
-      host: settings.host,
-      port: settings.port,
-      path: settings.path,
-      tls: settings.tls,
-      timeoutMs: 30_000,
-      uuid: settings.uuid,
-      password: settings.password,
-      method: settings.method,
-    });
-    logLine(
-      `connect via ${settings.protocol}: ${settings.tls ? "wss" : "ws"}://${settings.host}:${settings.port}${settings.path}`,
-    );
     const started = performance.now();
     const method = settings.methodReq;
     const hasBody = method !== "GET" && method !== "HEAD" && settings.body.length > 0;
-    const response = await tunnel.fetch(settings.target, {
-      method,
-      body: hasBody ? settings.body : null,
-      headers: hasBody ? { "content-type": "application/json" } : undefined,
-    });
+    let response: Response;
+    if (viaSw) {
+      // Lazy load: the SW helper (page side) is fetched on first use.
+      const { installTunnelServiceWorker, tunnelFetch } = await import("wasm-tunnel-client/sw");
+      const config: SwTunnelConfig = {
+        protocol: settings.protocol,
+        host: settings.host,
+        port: settings.port,
+        path: settings.path,
+        tls: settings.tls,
+        timeoutMs: 30_000,
+        uuid: settings.uuid,
+        password: settings.password,
+        method: settings.method,
+      };
+      logLine("registering service worker /sw.js …");
+      await installTunnelServiceWorker("/sw.js", { config });
+      logLine("sw registered — request goes page → sw → tunnel");
+      response = await tunnelFetch(settings.target, {
+        method,
+        body: hasBody ? settings.body : null,
+        headers: hasBody ? { "content-type": "application/json" } : undefined,
+      });
+    } else {
+      // Lazy load: the protocol module is fetched on first use, keeping the
+      // demo bundle at core+VLESS until Shadowsocks is actually selected.
+      const { createTunnel } = await import("wasm-tunnel-client/create-tunnel");
+      const tunnel: Tunnel = await createTunnel({
+        protocol: settings.protocol,
+        host: settings.host,
+        port: settings.port,
+        path: settings.path,
+        tls: settings.tls,
+        timeoutMs: 30_000,
+        uuid: settings.uuid,
+        password: settings.password,
+        method: settings.method,
+      });
+      logLine(
+        `connect via ${settings.protocol}: ${settings.tls ? "wss" : "ws"}://${settings.host}:${settings.port}${settings.path}`,
+      );
+      response = await tunnel.fetch(settings.target, {
+        method,
+        body: hasBody ? settings.body : null,
+        headers: hasBody ? { "content-type": "application/json" } : undefined,
+      });
+    }
     const bodyText = await response.text();
     const elapsed = Math.round(performance.now() - started);
-    logLine(`response status=${response.status} bytes=${bodyText.length} in ${elapsed} ms`);
+    const mode = viaSw ? "sw" : "page";
+    logLine(`response status=${response.status} bytes=${bodyText.length} in ${elapsed} ms [${mode}]`);
     showResult(response, bodyText, elapsed);
   } catch (error) {
     logLine(`ERROR: ${error instanceof Error ? error.message : String(error)}`);

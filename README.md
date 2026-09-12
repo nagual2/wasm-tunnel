@@ -121,6 +121,44 @@ sockets are unreachable from a browser page.
 3. Register it in `src/create-tunnel.ts` and add a subpath export in the
    package manifest if it should be lazy-loadable.
 
+## Service Worker interceptor
+
+The `wasm-tunnel-client/sw` export lets a page route its own `fetch()` calls
+through the tunnel via a Service Worker — the tunnel lives inside the worker,
+so app code can keep issuing normal requests without touching the tunnel API:
+
+```ts
+import { installTunnelServiceWorker, tunnelFetch } from "wasm-tunnel-client/sw";
+
+await installTunnelServiceWorker("/sw.js", {
+  config: { protocol: "vless", host: "node.example", port: 443, path: "/tunnel", uuid: "…" },
+});
+
+// Explicit opt-in per call (no global fetch monkey-patching):
+const res = await tunnelFetch("http://echo:8081/items", { method: "POST", body: "…" });
+```
+
+Ship a worker script next to the page — one command bundles the built-in
+entry (`packages/client/src/sw-worker.ts`) into a classic `sw.js`:
+
+```bash
+npx esbuild packages/client/src/sw-worker.ts --bundle --format=iife --minify \
+  --outfile=apps/demo/public/sw.js
+```
+
+Automatic interception: the worker's `fetch` handler intercepts same-origin
+requests under the configured path prefixes (default `/tunnel/`) and treats
+the remainder as the absolute in-tunnel target, e.g.
+`fetch("/tunnel/http://echo:8081/items")` → `tunnel.fetch("http://echo:8081/items")`.
+Unmatched requests pass through untouched; failures become plain-text `502`
+(or `503` before registration) Responses — a fetch handler must not throw.
+
+Limits: same-origin worker scope; bodies are buffered (no streaming uploads);
+the tunnel config lives in worker memory, so the page must re-register (e.g.
+on `controllerchange`); `http://` targets only. The demo page has a
+"Route via Service Worker" checkbox that registers `/sw.js` and sends one
+request through `tunnelFetch`.
+
 ## IPv6
 
 IPv6 works on equal footing with IPv4 in both planes:
@@ -169,7 +207,7 @@ every push.
 - [x] Protocol module seam: transport-as-stream, `createTunnel({protocol})`,
       per-protocol subpath exports (anti-bloat module split)
 - [ ] npm packaging of the client package
-- [ ] Service Worker helper for same-origin `fetch` interception
+- [x] Service Worker helper for same-origin `fetch` interception
 - [ ] QUIC transport: WebTransport module (Chromium/Firefox, ws fallback for
       Safari) + sing-box `webtransport` node profile; hand-rolled QUIC in
       Wasm is explicitly out of scope

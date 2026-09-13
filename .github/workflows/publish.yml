@@ -1,0 +1,28 @@
+name: Publish
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # npm provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm test
+      # Source distribution: exports point at the TS sources directly
+      # (bundler/Node --experimental-strip-types consumption is the norm
+      # for this browser-first lib). No build step to forget.
+      - run: npm publish -w packages/client --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
